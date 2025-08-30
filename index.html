@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Грибок против Марио</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #1a5fb4, #6ab3e7);
+            font-family: 'Press Start 2P', cursive, Arial, sans-serif;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 95vmin;
+            height: 150vmin; /* Уменьшенная высота */
+            max-width: 500px;
+            max-height: 790px;
+            border: 6px solid #ffcc00;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255, 204, 0, 0.4);
+            overflow: hidden;
+        }
+        
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #6ab3e7;
+            display: block;
+        }
+        
+        #background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="https://abrakadabra.fun/uploads/posts/2022-01/1641243530_1-abrakadabra-fun-p-fon-igri-mario-1.jpg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%236ab3e7"/><path d="M20,30 C30,10 70,10 80,30 C90,50 70,70 50,90 C30,70 10,50 20,30 Z" fill="%23ffffff" opacity="0.1"/><circle cx="30" cy="40" r="5" fill="%23ffffff" opacity="0.1"/><circle cx="70" cy="40" r="5" fill="%23ffffff" opacity="0.1"/></svg>');
+            background-size: cover;
+        }
+        
+        #ui-container {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 2px 2px 0 #000, 1px 1px 5px rgba(0,0,0,0.7);
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #ffcc00;
+        }
+        
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23000000" opacity="0.8"/><path d="M20,30 C30,10 70,10 80,30 C90,50 70,70 50,90 C30,70 10,50 20,30 Z" fill="%23ffcc00" opacity="0.2"/></svg>');
+        }
+        
+        #game-over-screen {
+            display: none;
+        }
+        
+        h1 {
+            font-size: 28px;
+            color: #ffcc00;
+            text-shadow: 3px 3px 0 #ff4e4e, 5px 5px 0 #000;
+            margin-bottom: 25px;
+            line-height: 1.3;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #ff4e4e, #cc0000);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 16px;
+            font-family: 'Press Start 2P', cursive;
+            margin-top: 25px;
+            cursor: pointer;
+            border-radius: 10px;
+            box-shadow: 0 6px #a33838, 0 8px 15px rgba(0,0,0,0.4);
+            transition: all 0.1s;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px #a33838, 0 4px 10px rgba(0,0,0,0.4);
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            right: -10px;
+            bottom: -10px;
+            background: linear-gradient(45deg, rgba(255,255,255,0.2), transparent);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .instructions {
+            text-align: center;
+            width: 100%;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #ffcc00;
+            text-shadow: 1px 1px 0 #000;
+        }
+        
+        .pixel-art {
+            image-rendering: pixelated;
+        }
+        
+        .hearts {
+            display: flex;
+            margin-top: 8px;
+            gap: 8px;
+        }
+        
+        .heart {
+            width: 22px;
+            height: 22px;
+            background: linear-gradient(to bottom, #ff4e4e, #cc0000);
+            border-radius: 2px;
+            position: relative;
+            transform: rotate(-45deg);
+            box-shadow: 2px 2px 3px rgba(0,0,0,0.3);
+        }
+        
+        .heart::before,
+        .heart::after {
+            content: '';
+            width: 22px;
+            height: 22px;
+            background: linear-gradient(to bottom, #ff4e4e, #cc0000);
+            border-radius: 50%;
+            position: absolute;
+        }
+        
+        .heart::before {
+            top: -11px;
+            left: 0;
+        }
+        
+        .heart::after {
+            top: 0;
+            left: 11px;
+        }
+        
+        .heart.lost {
+            background: linear-gradient(to bottom, #555, #333);
+        }
+        
+        .heart.lost::before,
+        .heart.lost::after {
+            background: linear-gradient(to bottom, #555, #333);
+        }
+        
+        #jump-button {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: linear-gradient(to bottom, #4caf50, #2e7d32);
+            border: 4px solid #1b5e20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10;
+            user-select: none;
+            color: white;
+            text-shadow: 1px 1px 0 #000;
+            box-shadow: 0 6px #1b5e20, 0 8px 15px rgba(0,0,0,0.4);
+            transition: all 0.1s;
+        }
+        
+        #jump-button:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px #1b5e20, 0 4px 10px rgba(0,0,0,0.4);
+        }
+        
+        .controls-info {
+            position: absolute;
+            left: 15px;
+            bottom: 30px;
+            color: white;
+            font-size: 10px;
+            text-shadow: 1px 1px 0 #000;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #ffcc00;
+        }
+        
+        .score-display {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #ffcc00;
+        }
+        
+        .game-title {
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: #ffcc00;
+            text-shadow: 4px 4px 0 #ff4e4e, 6px 6px 0 #000;
+            line-height: 1.2;
+        }
+        
+        .mushroom-icon {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(to bottom, #ff4e4e, #cc0000);
+            border-radius: 50% 50% 40% 40%;
+            margin: 0 10px;
+            position: relative;
+            top: 8px;
+        }
+        
+        .mushroom-icon::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            top: 5px;
+            left: 5px;
+            opacity: 0.6;
+        }
+        
+        @media (max-height: 700px) {
+            #game-container {
+                height: 140vmin;
+                max-height: 740px;
+            }
+            
+            h1 {
+                font-size: 22px;
+            }
+            
+            button {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+            
+            .instructions {
+                font-size: 11px;
+                padding: 12px;
+            }
+            
+            .game-title {
+                font-size: 30px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <div id="background"></div>
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="ui-container">
+            <div class="score-display" id="score">Очки: 0</div>
+            <div>Жизни:</div>
+            <div class="hearts">
+                <div class="heart"></div>
+                <div class="heart"></div>
+                <div class="heart"></div>
+            </div>
+        </div>
+        
+        <div id="start-screen">
+            <div class="game-title">ГРИБОК <span class="mushroom-icon"></span> ПРОТИВ МАРИО</div>
+            <div class="instructions">
+                Нажимай ПРОБЕЛ или кнопку внизу для прыжка!<br>
+                Перепрыгни Марио для получения очков!<br>
+                Избегай птичек - они отнимают жизни!
+            </div>
+            <button id="start-button">НАЧАТЬ ИГРУ</button>
+        </div>
+        
+        <div id="game-over-screen">
+            <h1>ИГРА ОКОНЧЕНА</h1>
+            <div class="score-display" id="final-score">Ваш счет: 0</div>
+            <button id="restart-button">ИГРАТЬ СНОВА</button>
+        </div>
+        
+        <div id="jump-button">ПРЫЖОК</div>
+        <div class="controls-info">Используй ПРОБЕЛ или кнопку для прыжка</div>
+    </div>
+
+    <script>
+        // Загрузка ресурсов
+        const resources = {
+            images: {
+                player: "src/resources/images/mushroom.png",
+                mario: "src/resources/images/mario.png",
+                bird: "src/resources/images/bird.png"
+            },
+            sounds: {
+                jump: "src/resources/sounds/jump.wav",
+                marioKill: "src/resources/sounds/mario_kill.wav",
+                birdKill: "src/resources/sounds/bird_kill.wav",
+                damage: "src/resources/sounds/damage.wav",
+                gameOver: "src/resources/sounds/game_over.wav"
+            }
+        };
+
+        // Основные переменные игры
+        let canvas, ctx;
+        let player, enemies;
+        let platforms;
+        let score, lives;
+        let gameRunning = false;
+        let gameLoop;
+        let keys = {};
+        let gravity = 0.5;
+        let enemySpawnTimer = 0;
+        let enemySpawnInterval = 2000; // 2 секунды между появлением врагов
+        let damageCooldown = 0;
+        let damageCooldownTime = 1000; // 1 секунда неуязвимости после получения урона
+        
+        // Звуковые эффекты
+        let sounds = {};
+
+        // Класс игрока
+        class Player {
+            constructor() {
+                this.width = 70; // Увеличенный размер
+                this.height = 70; // Увеличенный размер
+                this.x = 0;
+                this.y = 0;
+                this.speedX = 0;
+                this.speedY = 0;
+                this.jumping = false;
+                this.invulnerable = false;
+                this.image = new Image();
+                this.image.src = resources.images.player;
+                this.image.onerror = () => {
+                    console.error("Ошибка загрузки изображения игрока");
+                    // Создаем placeholder
+                    this.draw = () => {
+                        ctx.fillStyle = 'red';
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    };
+                };
+            }
+            
+            update() {
+                // Применяем гравитацию
+                this.speedY += gravity;
+                
+                // Обновляем позицию
+                this.x += this.speedX;
+                this.y += this.speedY;
+                
+                // Ограничение по земле
+                if (this.y > canvas.height - this.height - 50) {
+                    this.y = canvas.height - this.height - 50;
+                    this.speedY = 0;
+                    this.jumping = false;
+                }
+                
+                // Ограничение по потолку
+                if (this.y < 0) {
+                    this.y = 0;
+                    this.speedY = 0;
+                }
+                
+                // Ограничение по бокам
+                if (this.x < 0) this.x = 0;
+                if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+            }
+            
+            jump() {
+                if (!this.jumping) {
+                    this.speedY = -15;
+                    this.jumping = true;
+                    playSound('jump');
+                }
+            }
+            
+            draw() {
+                // Мигание при неуязвимости
+                if (this.invulnerable && Math.floor(Date.now() / 200) % 2 === 0) {
+                    ctx.globalAlpha = 0.5;
+                }
+                
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Класс врага
+        class Enemy {
+            constructor(type, x, y, speed) {
+                this.type = type; // 'mario' или 'bird'
+                this.width = 70; // Увеличенный размер
+                this.height = 70; // Увеличенный размер
+                this.x = x;
+                this.y = y;
+                this.speed = speed;
+                this.active = true;
+                this.image = new Image();
+                this.image.src = type === 'mario' ? resources.images.mario : resources.images.bird;
+                this.image.onerror = () => {
+                    console.error("Ошибка загрузки изображения врага");
+                    // Создаем placeholder
+                    this.draw = () => {
+                        ctx.fillStyle = type === 'mario' ? 'blue' : 'yellow';
+                        ctx.fillRect(this.x, this.y, this.width, this.height);
+                    };
+                };
+            }
+            
+            update() {
+                if (!this.active) return;
+                
+                this.x += this.speed;
+                
+                // Если враг ушел за экран, деактивируем его
+                if ((this.speed > 0 && this.x > canvas.width) || 
+                    (this.speed < 0 && this.x < -this.width)) {
+                    this.active = false;
+                }
+            }
+            
+            draw() {
+                if (!this.active) return;
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+            }
+        }
+
+        // Инициализация игры
+        function init() {
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext('2d');
+            
+            // Установка размеров canvas
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // Загрузка звуков
+            for (let sound in resources.sounds) {
+                sounds[sound] = new Audio(resources.sounds[sound]);
+                sounds[sound].onerror = () => console.error(`Ошибка загрузки звука: ${sound}`);
+            }
+            
+            // Настройка обработчиков событий
+            document.getElementById('start-button').addEventListener('click', startGame);
+            document.getElementById('restart-button').addEventListener('click', startGame);
+            document.getElementById('jump-button').addEventListener('click', () => {
+                if (gameRunning) player.jump();
+            });
+            
+            // Обработка касаний для прыжка
+            canvas.addEventListener('touchstart', (e) => {
+                if (gameRunning) {
+                    player.jump();
+                    e.preventDefault();
+                }
+            });
+            
+            window.addEventListener('keydown', function(e) {
+                keys[e.keyCode] = true;
+                
+                // Пробел для прыжка
+                if (e.keyCode === 32 && gameRunning) {
+                    player.jump();
+                }
+            });
+            
+            window.addEventListener('keyup', function(e) {
+                keys[e.keyCode] = false;
+            });
+            
+            // Обработка изменения размера окна
+            window.addEventListener('resize', () => {
+                if (gameRunning) {
+                    canvas.width = canvas.offsetWidth;
+                    canvas.height = canvas.offsetHeight;
+                }
+            });
+        }
+
+        // Начало игры
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-over-screen').style.display = 'none';
+            
+            // Установка размеров canvas
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // Сброс игровых переменных
+            score = 0;
+            lives = 3;
+            updateHearts();
+            
+            // Создание игрока
+            player = new Player();
+            player.x = canvas.width / 2 - player.width / 2;
+            player.y = canvas.height - player.height - 50;
+            
+            // Создание врагов
+            enemies = [];
+            
+            // Создание платформ
+            platforms = [
+                {x: 0, y: canvas.height - 50, width: canvas.width, height: 50}
+            ];
+            
+            // Сброс таймера появления врагов
+            enemySpawnTimer = 0;
+            damageCooldown = 0;
+            
+            // Обновление интерфейса
+            document.getElementById('score').textContent = `Очки: ${score}`;
+            
+            gameRunning = true;
+            
+            // Запуск игрового цикла
+            cancelAnimationFrame(gameLoop);
+            lastTime = 0;
+            gameLoop = requestAnimationFrame(update);
+        }
+
+        // Обновление количества отображаемых сердец
+        function updateHearts() {
+            const hearts = document.querySelectorAll('.heart');
+            hearts.forEach((heart, index) => {
+                if (index < lives) {
+                    heart.classList.remove('lost');
+                } else {
+                    heart.classList.add('lost');
+                }
+            });
+        }
+
+        // Спавн врагов
+        function spawnEnemy() {
+            // Случайный выбор типа врага
+            const type = Math.random() > 0.5 ? 'mario' : 'bird';
+            
+            // Определение направления и начальной позиции
+            let x, y, speed;
+            
+            if (Math.random() > 0.5) {
+                // Враг появляется слева и движется вправо
+                x = -70;
+                speed = 3 + Math.random() * 2;
+            } else {
+                // Враг появляется справа и движется влево
+                x = canvas.width + 20;
+                speed = -3 - Math.random() * 2;
+            }
+            
+            // Позиция по Y (на земле)
+            y = canvas.height - 50 - 70;
+            
+            enemies.push(new Enemy(type, x, y, speed));
+        }
+
+        // Игровой цикл
+        let lastTime = 0;
+        function update(timestamp) {
+            if (!gameRunning) return;
+            
+            // Вычисляем разницу во времени для плавной анимации
+            const deltaTime = timestamp - lastTime || 0;
+            lastTime = timestamp;
+            
+            // Обновляем кд урона
+            if (damageCooldown > 0) {
+                damageCooldown -= deltaTime;
+                if (damageCooldown <= 0) {
+                    player.invulnerable = false;
+                }
+            }
+            
+            // Очистка холста
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Рисуем платформы
+            ctx.fillStyle = '#8b4513';
+            platforms.forEach(platform => {
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Трава на платформах
+                ctx.fillStyle = '#55aa55';
+                ctx.fillRect(platform.x, platform.y, platform.width, 10);
+                ctx.fillStyle = '#8b4513';
+            });
+            
+            // Обновление и отрисовка игрока
+            player.update();
+            player.draw();
+            
+            // Спавн врагов
+            enemySpawnTimer += deltaTime;
+            if (enemySpawnTimer >= enemySpawnInterval && enemies.length < 3) {
+                spawnEnemy();
+                enemySpawnTimer = 0;
+            }
+            
+            // Обновление и отрисовка врагов
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.update();
+                enemy.draw();
+                
+                // Удаляем неактивных врагов
+                if (!enemy.active) {
+                    enemies.splice(i, 1);
+                    continue;
+                }
+                
+                // Проверка столкновений
+                if (checkCollision(player, enemy) && !player.invulnerable) {
+                    if (enemy.type === 'mario') {
+                        // Если прыгнули на Марио
+                        if (player.y + player.height < enemy.y + enemy.height / 2) {
+                            score += 100;
+                            document.getElementById('score').textContent = `Очки: ${score}`;
+                            playSound('marioKill');
+                            enemy.active = false; // Убираем Марио
+                        } else {
+                            // Столкновение с Марио
+                            takeDamage();
+                        }
+                    } else if (enemy.type === 'bird') {
+                        // Если прыгнули на птичку
+                        if (player.y + player.height < enemy.y + enemy.height / 2) {
+                            score += 200;
+                            document.getElementById('score').textContent = `Очки: ${score}`;
+                            playSound('birdKill');
+                            enemy.active = false; // Убираем птичку
+                        } else {
+                            // Столкновение с птичкой
+                            takeDamage();
+                        }
+                    }
+                }
+            }
+            
+            // Продолжаем игровой цикл
+            gameLoop = requestAnimationFrame(update);
+        }
+
+        // Проверка столкновений
+        function checkCollision(obj1, obj2) {
+            return obj1.x < obj2.x + obj2.width &&
+                   obj1.x + obj1.width > obj2.x &&
+                   obj1.y < obj2.y + obj2.height &&
+                   obj1.y + obj1.height > obj2.y;
+        }
+
+        // Получение урона
+        function takeDamage() {
+            // Проверяем, не в режиме ли неуязвимости игрок
+            if (player.invulnerable) return;
+            
+            lives--;
+            updateHearts();
+            playSound('damage');
+            
+            // Включаем неуязвимость на время
+            player.invulnerable = true;
+            damageCooldown = damageCooldownTime;
+            
+            if (lives <= 0) {
+                gameOver();
+            }
+        }
+
+        // Конец игры
+        function gameOver() {
+            gameRunning = false;
+            cancelAnimationFrame(gameLoop);
+            
+            document.getElementById('final-score').textContent = `Ваш счет: ${score}`;
+            document.getElementById('game-over-screen').style.display = 'flex';
+            
+            playSound('gameOver');
+        }
+
+        // Воспроизведение звука
+        function playSound(sound) {
+            if (sounds[sound]) {
+                sounds[sound].currentTime = 0;
+                sounds[sound].play().catch(e => console.log("Автозапуск звука заблокирован браузером"));
+            }
+        }
+
+        // Запуск игры при загрузке страницы
+        window.onload = init;
+    </script>
+</body>
+</html>
